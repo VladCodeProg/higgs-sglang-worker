@@ -34,7 +34,7 @@ export DEBIAN_FRONTEND=noninteractive
 if command -v apt-get >/dev/null 2>&1; then
     apt-get update
     apt-get install -y --no-install-recommends \
-        ca-certificates curl git libsndfile1 python3.12 python3.12-venv unzip
+        ca-certificates curl git libsndfile1 unzip
 else
     echo "apt-get is required by this Vast deployment bundle." >&2
     exit 4
@@ -57,11 +57,13 @@ chmod +x "$INSTALL_ROOT/start-sglang-worker-vast.sh" "$INSTALL_ROOT/scripts/"*.s
 
 export UV_INSTALL_DIR="$INSTALL_ROOT/bin"
 export UV_CACHE_DIR="$INSTALL_ROOT/uv-cache"
+export UV_PYTHON_INSTALL_DIR="$INSTALL_ROOT/python"
 export HF_HOME="$MODEL_CACHE/huggingface"
 mkdir -p "$UV_INSTALL_DIR" "$UV_CACHE_DIR" "$HF_HOME"
 curl -LsSf https://astral.sh/uv/install.sh | sh
 UV="$UV_INSTALL_DIR/uv"
 if [ ! -x "$UV" ]; then UV="$(command -v uv)"; fi
+"$UV" python install 3.12
 if [ ! -x "$VENV/bin/python" ]; then "$UV" venv "$VENV" --python 3.12 --seed; fi
 
 if [ ! -d "$SGLANG_SRC/.git" ]; then
