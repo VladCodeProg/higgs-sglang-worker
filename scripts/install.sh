@@ -34,7 +34,8 @@ export DEBIAN_FRONTEND=noninteractive
 if command -v apt-get >/dev/null 2>&1; then
     apt-get update
     apt-get install -y --no-install-recommends \
-        build-essential ca-certificates cuda-compiler-13-0 curl git libsndfile1 unzip
+        build-essential ca-certificates cuda-compiler-13-0 cuda-libraries-dev-13-0 \
+        curl git libsndfile1 unzip
 else
     echo "apt-get is required by this Vast deployment bundle." >&2
     exit 4
