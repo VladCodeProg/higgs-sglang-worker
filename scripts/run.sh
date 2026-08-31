@@ -16,6 +16,8 @@ source "$ENV_FILE"
 set +a
 
 export HIGGS_SGLANG_APP_DIR="$INSTALL_ROOT"
+export VIRTUAL_ENV="$INSTALL_ROOT/.venv"
+export PATH="$VIRTUAL_ENV/bin:$INSTALL_ROOT/bin:$PATH"
 export HF_HOME="${HF_HOME:-${MODEL_CACHE_DIR:-/workspace/model-cache}/huggingface}"
 export HIGGS_WORKER_CACHE_DIR="${HIGGS_WORKER_CACHE_DIR:-$INSTALL_ROOT/voice-cache}"
 export HIGGS_WORKER_TEMP_DIR="${HIGGS_WORKER_TEMP_DIR:-$INSTALL_ROOT/request-tmp}"
