@@ -61,7 +61,15 @@ export UV_CACHE_DIR="$INSTALL_ROOT/uv-cache"
 export UV_PYTHON_INSTALL_DIR="$INSTALL_ROOT/python"
 export HF_HOME="$MODEL_CACHE/huggingface"
 mkdir -p "$UV_INSTALL_DIR" "$UV_CACHE_DIR" "$HF_HOME"
-curl -LsSf https://astral.sh/uv/install.sh | sh
+UV_INSTALLER="$(mktemp)"
+trap 'rm -f "$UV_INSTALLER"' EXIT
+curl --fail --location --silent --show-error \
+    --connect-timeout 20 --max-time 120 \
+    --retry 8 --retry-delay 3 --retry-max-time 300 --retry-all-errors \
+    https://astral.sh/uv/install.sh -o "$UV_INSTALLER"
+sh "$UV_INSTALLER"
+rm -f "$UV_INSTALLER"
+trap - EXIT
 UV="$UV_INSTALL_DIR/uv"
 if [ ! -x "$UV" ]; then UV="$(command -v uv)"; fi
 "$UV" python install 3.12
