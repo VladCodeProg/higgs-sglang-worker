@@ -10,6 +10,10 @@ SGLANG_REV="${HIGGS_SGLANG_REV:-d0aec3118ea1f609223c555347ef685469f4e1db}"
 VENV="$INSTALL_ROOT/.venv"
 SGLANG_SRC="$INSTALL_ROOT/sglang-omni-src"
 
+step() {
+    printf '::higgs-step::%s\n' "$1"
+}
+
 case "$INSTALL_ROOT" in
     /*) ;;
     *) echo "WORKER_INSTALL_ROOT must be an absolute path." >&2; exit 2 ;;
@@ -32,6 +36,7 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 if command -v apt-get >/dev/null 2>&1; then
+    step installing_system_dependencies
     apt-get update
     apt-get install -y --no-install-recommends \
         build-essential ca-certificates cuda-compiler-13-0 curl git \
@@ -44,6 +49,7 @@ fi
 mkdir -p "$INSTALL_ROOT" "$LOG_DIR" "$MODEL_CACHE" \
     "$INSTALL_ROOT/runtime" "$INSTALL_ROOT/voice-cache" "$INSTALL_ROOT/request-tmp"
 
+step preparing_worker_files
 if [ "$SOURCE_ROOT" != "$INSTALL_ROOT" ]; then
     cp -f "$SOURCE_ROOT/sglang_worker_api.py" "$INSTALL_ROOT/"
     cp -f "$SOURCE_ROOT/requirements-sglang-worker.txt" "$INSTALL_ROOT/"
@@ -61,6 +67,7 @@ export UV_CACHE_DIR="$INSTALL_ROOT/uv-cache"
 export UV_PYTHON_INSTALL_DIR="$INSTALL_ROOT/python"
 export HF_HOME="$MODEL_CACHE/huggingface"
 mkdir -p "$UV_INSTALL_DIR" "$UV_CACHE_DIR" "$HF_HOME"
+step installing_uv
 UV_INSTALLER="$(mktemp)"
 trap 'rm -f "$UV_INSTALLER"' EXIT
 curl --fail --location --silent --show-error \
@@ -72,25 +79,32 @@ rm -f "$UV_INSTALLER"
 trap - EXIT
 UV="$UV_INSTALL_DIR/uv"
 if [ ! -x "$UV" ]; then UV="$(command -v uv)"; fi
+step installing_python
 "$UV" python install 3.12
 if [ ! -x "$VENV/bin/python" ]; then "$UV" venv "$VENV" --python 3.12 --seed; fi
 
+step fetching_sglang
 if [ ! -d "$SGLANG_SRC/.git" ]; then
     git clone https://github.com/sgl-project/sglang-omni.git "$SGLANG_SRC"
 fi
 git -C "$SGLANG_SRC" fetch --depth 1 origin "$SGLANG_REV"
 git -C "$SGLANG_SRC" checkout --detach FETCH_HEAD
 
+step installing_sglang_dependencies
 "$UV" pip install --python "$VENV/bin/python" -e "$SGLANG_SRC" --torch-backend=cu130
+step installing_worker_dependencies
 "$UV" pip install --python "$VENV/bin/python" \
     -r "$INSTALL_ROOT/requirements-sglang-worker.txt" --torch-backend=cu130
 
+step validating_cuda
 "$VENV/bin/python" -c \
     "import torch, torchaudio, sglang_omni; assert torch.cuda.is_available(); print('GPU:', torch.cuda.get_device_name(0), 'CUDA:', torch.version.cuda, 'TorchAudio:', torchaudio.__version__)"
 
 if [ "${HIGGS_SGLANG_PRELOAD_MODEL:-1}" = "1" ]; then
+    step downloading_model
     "$VENV/bin/hf" download bosonai/higgs-audio-v3-tts-4b
 fi
 
+step worker_installation_complete
 echo "Worker installation complete at $INSTALL_ROOT"
 echo "Create $INSTALL_ROOT/.env from .env.worker.example, then run scripts/start.sh."
